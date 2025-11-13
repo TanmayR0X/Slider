@@ -1,58 +1,83 @@
-let items = document.querySelectorAll('.slider .list .item');
-let next = document.getElementById('next');
-let prev = document.getElementById('prev');
-let thumbnail = document.querySelectorAll('.thumbnail .item');
+// Cache DOM elements once
+const items = document.querySelectorAll('.slider .list .item');
+const next = document.getElementById('next');
+const prev = document.getElementById('prev');
+const thumbnails = document.querySelectorAll('.thumbnail .item');
 
-let countItem = items.length;
+const countItem = items.length;
 let itemActive = 0;
+let isAnimating = false;
 
-// auto run slider 
-let refrestInterval = setInterval(() => {
-  next.click();
+// Auto run slider with longer interval for better UX
+let refreshInterval = setInterval(() => {
+  if (!isAnimating) next.click();
 }, 5000);
 
-// event next click
-next.addEventListener('click', ()=> {
-    itemActive = itemActive+1;
-
-  if(itemActive >= countItem) {
-    itemActive = 0;
-  }
-  showSlider();
-})
-
-//event prev click
-prev.addEventListener('click', ()=> {
-  itemActive = itemActive-1;
-  if(itemActive < 0) {
-    itemActive = countItem-1;
-  }
-  showSlider()
-
-})
-
+// Optimized showSlider function
 function showSlider() {
-  // remove active class from old item
-  let itemActiveOld = document.querySelector('.slider .list .item.active');
-  let thumbnailActive = document.querySelector('.thumbnail .item.active');
-  itemActiveOld.classList.remove('active');
-  thumbnailActive.classList.remove('active');
+  if (isAnimating) return;
+  isAnimating = true;
 
-  // active new item
-  items[itemActive].classList.add('active');
-  thumbnail[itemActive].classList.add('active');
+  // Use cached references instead of querying DOM
+  items.forEach((item, index) => {
+    item.classList.toggle('active', index === itemActive);
+  });
 
-  // clear auto run slider
-  clearInterval(refrestInterval);
-  refrestInterval = setInterval(() => {
-  next.click();
-}, 5000);
+  thumbnails.forEach((thumb, index) => {
+    thumb.classList.toggle('active', index === itemActive);
+  });
+
+  // Reset animation lock after transition
+  setTimeout(() => {
+    isAnimating = false;
+  }, 500);
+
+  // Clear and restart auto-run
+  clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => {
+    if (!isAnimating) next.click();
+  }, 5000);
 }
 
-// click thumbnail event 
-thumbnail.forEach((thumbnail,index)=> {
-  thumbnail.addEventListener('click', ()=> {
+// Event next click
+next.addEventListener('click', () => {
+  if (isAnimating) return;
+  itemActive = (itemActive + 1) % countItem;
+  showSlider();
+});
+
+// Event prev click
+prev.addEventListener('click', () => {
+  if (isAnimating) return;
+  itemActive = (itemActive - 1 + countItem) % countItem;
+  showSlider();
+});
+
+// Click thumbnail event with event delegation would be better,
+// but keeping your pattern with optimization
+thumbnails.forEach((thumbnail, index) => {
+  thumbnail.addEventListener('click', () => {
+    if (isAnimating || index === itemActive) return;
     itemActive = index;
     showSlider();
-  })
-})
+  });
+});
+
+// Pause auto-slide when user interacts
+let userInteracted = false;
+const resetAutoSlide = () => {
+  clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => {
+    if (!isAnimating) next.click();
+  }, 5000);
+};
+
+// Optional: Pause on hover for better UX
+const sliderElement = document.querySelector('.slider');
+sliderElement.addEventListener('mouseenter', () => {
+  clearInterval(refreshInterval);
+});
+
+sliderElement.addEventListener('mouseleave', () => {
+  resetAutoSlide();
+});
